@@ -1,0 +1,25 @@
+# 改行コードの扱いを固定する（拡張機能 novel-ai-assistant の .gitattributes と同じ考え方）。
+#
+# Windowsのgitは既定で core.autocrlf=true になっている。この設定のまま
+# .gitattributes が無いと、編集していない行まで全部変わった差分になり、
+# 実際の変更が読めなくなる。リポジトリ内はLFで統一する。
+* text=auto eol=lf
+
+# 原稿は別扱いにする。
+#
+# 作者の原稿の改行コードを1バイトも変えない決まり（共通設計書 2.1）を、
+# 試しの原稿を置いたときにも崩さないため、テキストとして扱わせない。
+*.txt -text
+
+# バイナリ
+*.apk binary
+*.aab binary
+*.jar binary
+*.png binary
+*.jpg binary
+*.webp binary
+
+# Windows のバッチファイルだけは CRLF にする。
+# cmd.exe は LF だけの bat で、ラベルや括弧のブロックを読み違えることがある
+# （android/gradlew.bat。上の eol=lf のままだと作業ツリーで LF になる）
+*.bat text eol=crlf

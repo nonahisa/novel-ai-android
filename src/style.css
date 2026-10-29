@@ -1,0 +1,161 @@
+/**
+ * 動作確認ページの見た目。
+ * スマホの縦画面で読めることだけを狙う。製品の意匠はまだ決めない。
+ */
+
+:root {
+  color-scheme: light dark;
+  --bg: #fdfcfa;
+  --fg: #1f2328;
+  --sub: #666f7a;
+  --line: #dfe1e5;
+  --card: #ffffff;
+  --accent: #3b5c8f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c;
+    --fg: #e6e8ea;
+    --sub: #9aa3ad;
+    --line: #2c313a;
+    --card: #1b1f26;
+    --accent: #8fb0e0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: max(12px, env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin: 0 0 12px;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+  color: var(--accent);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.note {
+  color: var(--sub);
+  font-size: 0.85rem;
+  margin: 0 0 10px;
+}
+
+code {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 0.85rem;
+}
+dt {
+  color: var(--sub);
+  white-space: nowrap;
+}
+dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+/* 縦書きの原稿欄。パソコン版と同じ手（writing-mode を textarea に効かせる） */
+#tategaki,
+.tategaki-view {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: "Hiragino Mincho ProN", "Noto Serif JP", "Yu Mincho", serif;
+  font-size: 17px;
+  line-height: 1.9;
+  height: 260px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+#rubySrc {
+  writing-mode: horizontal-tb;
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  margin-bottom: 10px;
+}
+
+.tategaki-view {
+  height: 200px;
+}
+
+ruby rt {
+  font-size: 0.5em;
+}
+
+/* 傍点。縦書きでは右側に付くのが決まり */
+.bouten {
+  font-style: normal;
+  text-emphasis: filled dot;
+  -webkit-text-emphasis: filled dot;
+}
+
+.count {
+  color: var(--sub);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+  text-align: left;
+}
+
+button {
+  font: inherit;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.result {
+  margin: 10px 0 0;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

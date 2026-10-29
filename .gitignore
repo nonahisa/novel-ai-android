@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+移植できるファイル一覧.txt
+
+# 鍵は同期しない（拡張機能の .gitignore と同じ）
+.env
+.env.*
+!.env.example
+
+# 配布用の署名の鍵。**公開のリポジトリなので、絶対に送らない。**
+# 一度送ると履歴から消しても写しが残りうる。鍵はリポジトリの外に置く
+*.jks
+*.keystore
+keystore.properties
+
+# Claude Code の個人設定（拡張機能と同じ。エージェント定義と手順書・共有の設定だけ送る）
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/settings.json
+!.claude/hooks/
