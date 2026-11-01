@@ -136,9 +136,10 @@ details.more summary{cursor:pointer;padding:12px 14px;color:var(--sub)}
 <header class="top">
   <h1>メニュー構成の試作（Android 版）</h1>
   <span class="seg" id="widthSeg">
-    <button data-w="narrow" class="on">狭い（スマホの縦）</button>
-    <button data-w="medium">中（スマホの横）</button>
-    <button data-w="wide">広い（タブレット）</button>
+    <button data-w="narrow" data-dev="narrow" class="on">狭い（スマホの縦）</button>
+    <button data-w="medium" data-dev="medium">中（スマホの横）</button>
+    <button data-w="medium" data-dev="tabP">中（タブレットの縦）</button>
+    <button data-w="wide" data-dev="wide">広い（タブレットの横）</button>
   </span>
   <span class="note">長押しは、押したまま 0.5 秒か右クリック。本文・作品名は作り話。</span>
 </header>
@@ -231,10 +232,11 @@ const TASKS = [
 const taskDone = {};
 
 /* 状態 */
-const S = { w:'narrow', tab:'works', work:WORKS[0], ep:3, otherPage:null, sideTab:'prop', drawer:null, horiz:false, kbd:false, kbdKeep:false, kbdKind:null };
+const S = { w:'narrow', dev:'narrow', tab:'works', work:WORKS[0], ep:3, otherPage:null, sideTab:'prop', drawer:null, horiz:false, kbd:false, kbdKeep:false, kbdKind:null };
 let taps = 0;
 const scr = document.getElementById('scr');
-const SIZE = { narrow:[360,760], medium:[760,420], wide:[1180,760] };
+// 画面の大きさは端末ごと。並べ方（S.w）は幅の段で決まり、タブレットの縦（約800dp）は「中」の段になる（設計書 4.3）
+const SIZE = { narrow:[360,760], medium:[760,420], tabP:[800,1180], wide:[1180,760] };
 
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function tap(what){
@@ -487,7 +489,7 @@ function sidePanel(){
 function sideTabs(){ return [['prop','提案'],['mat','資料'],['memo','メモ'],['chat','相談']].map(([k,l])=>`<button data-side="${k}" class="${S.sideTab===k?'on':''}">${l}${k==='prop'&&proposals.length?'（'+proposals.length+'）':''}</button>`).join(''); }
 
 function render(){
-  const [W,H]=SIZE[S.w]; scr.style.width=W+'px'; scr.style.height=H+'px';
+  const [W,H]=SIZE[S.dev]; scr.style.width=W+'px'; scr.style.height=H+'px';
   let h='';
   if(S.w==='narrow'){
     const hideTabs = S.tab==='write';
@@ -511,7 +513,7 @@ function render(){
 
 /* ===== 日本語キーボード（IME）の見本 ===== */
 // 狭い段（縦持ち）は12キー、中と広い段（横持ち・タブレット）はローマ字入力の QWERTY を出す
-const KBD_H = { narrow:270, medium:170, wide:300 };
+const KBD_H = { narrow:270, medium:170, tabP:330, wide:300 };
 const KANA = { 'あ':'あいうえお','か':'かきくけこ','さ':'さしすせそ','た':'たちつてと','な':'なにぬねの','は':'はひふへほ','ま':'まみむめも','や':'やゆよ','ら':'らりるれろ','わ':'わをん','、。':'、。？！','記号':'「」『』……――' };
 const MARKS = ['かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つっづ','てで','とど','はばぱ','ひびぴ','ふぶぷ','へべぺ','ほぼぽ','あぁ','いぃ','うぅゔ','えぇ','おぉ','やゃ','ゆゅ','よょ','わゎ'];
 const ROMA = (()=>{ const m={a:'あ',i:'い',u:'う',e:'え',o:'お',nn:'ん',shi:'し',chi:'ち',tsu:'つ',fu:'ふ',ji:'じ','-':'ー'};
@@ -521,7 +523,7 @@ const CANDS = ['灯台','澪','岬','手紙','父さん','霧','石段','差出�
 let kbBuf='', kbLast={key:null,t:0,i:0};
 function kbdKind(){ return S.kbdKind || (S.w==='narrow'?'12':'qwerty'); }
 function kbdEl(){
-  const d=document.createElement('div'); d.className='kbd'; d.style.height=KBD_H[S.w]+'px';
+  const d=document.createElement('div'); d.className='kbd'; d.style.height=KBD_H[S.dev]+'px';
   const K=(v,l,cls='',sub='')=>`<button class="k ${cls}" data-k="${esc(v)}">${l}${sub?`<small>${sub}</small>`:''}</button>`;
   let keys;
   if(kbdKind()==='12'){
@@ -590,7 +592,7 @@ function fit(){
   // 幅と高さの両方に収める（下のタブが画面の外へ出ないように）
   const dev=st.firstElementChild;
   const roomH=window.innerHeight-wrap.getBoundingClientRect().top-16;
-  const k=Math.min(1,(wrap.clientWidth-4)/dev.offsetWidth,Math.max(.35,roomH/dev.offsetHeight));
+  const k=Math.max(.2,Math.min(1,(wrap.clientWidth-4)/dev.offsetWidth,Math.max(.35,roomH/dev.offsetHeight)));
   st.style.transform=`scale(${k})`; wrap.style.height=(dev.offsetHeight*k)+'px';
 }
 window.addEventListener('resize',fit);
@@ -663,7 +665,7 @@ function selBand(){
 
 document.querySelectorAll('#widthSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#widthSeg button').forEach(x=>x.classList.toggle('on',x===b));
-  S.w=b.dataset.w; S.drawer=false; if(S.w!=='narrow'&&S.tab==='works'&&S.inWork) S.tab='write'; render();
+  S.w=b.dataset.w; S.dev=b.dataset.dev; S.drawer=false; if(S.w!=='narrow'&&S.tab==='works'&&S.inWork) S.tab='write'; render();
 });
 renderTasks(); render();
 </script>
