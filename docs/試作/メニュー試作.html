@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>メニュー構成の試作</title>
+<!--
+  Android 版のメニュー構成を触って確かめる試作（設計書 4.3・4.4.1〜4.4.3 の【案】）。
+  ブラウザで開くだけで動く。外のファイルや通信は使わない。
+  「すべての機能」の名前は、拡張機能の src/core/actionTree.ts（ACTION_TREE）から取り出した。
+  本文・作品名・提案は、試作のための作り話。
+-->
+<style>
+:root{
+  --bg:#f4f2ec; --ink:#2c2c2a; --sub:#6b6a64; --line:#ddd6c8;
+  --paper:#fffdf8; --bar:#efebe2; --acc:#0f6e56; --acc2:#e3f0ea; --warn:#a4462b;
+  --chip:#f0ede5; --shadow:0 2px 10px #0002;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1c1c1a; --ink:#e8e6e0; --sub:#a09e96; --line:#3a3934;
+    --paper:#262522; --bar:#2f2e2a; --acc:#5cc7a4; --acc2:#23352f; --warn:#e48d70;
+    --chip:#33322d; --shadow:0 2px 10px #0008;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Yu Gothic UI","Meiryo","Noto Sans JP",sans-serif;font-size:14px}
+button{font:inherit;color:inherit}
+header.top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+header.top h1{font-size:16px;margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer}
+.seg button.on{background:var(--acc);color:#fff}
+.note{color:var(--sub);font-size:12px}
+main{display:flex;gap:16px;padding:16px;align-items:flex-start;flex-wrap:wrap}
+#stageWrap{flex:1 1 560px;min-width:0;display:flex;justify-content:center;align-items:flex-start}
+#stage{transform-origin:top center}
+.dev{background:#1f1f1f;border-radius:24px;padding:12px;box-shadow:var(--shadow)}
+.scr{background:var(--paper);border-radius:12px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+aside.log{flex:0 1 300px;min-width:260px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px}
+aside.log h2{font-size:14px;margin:0 0 8px}
+.tasks label{display:flex;gap:6px;align-items:flex-start;margin:4px 0;font-size:13px}
+.tasks .done{color:var(--acc);font-weight:600}
+.count{font-size:22px;font-weight:700}
+#trail{list-style:none;margin:6px 0 0;padding:0;max-height:260px;overflow:auto;font-size:12px;color:var(--sub)}
+#trail li{padding:2px 0;border-bottom:1px dashed var(--line)}
+.btnline{border:1px solid var(--line);background:var(--chip);border-radius:6px;padding:4px 10px;cursor:pointer}
+
+/* 画面の中 */
+.appbar{height:48px;flex:0 0 48px;background:var(--bar);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:4px;padding:0 6px}
+.appbar .ttl{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px}
+.ib{border:0;background:transparent;min-width:40px;height:40px;border-radius:20px;cursor:pointer;font-size:15px;padding:0 8px}
+.ib:hover{background:var(--chip)}
+.pill{font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:10px;padding:1px 7px;white-space:nowrap}
+.body{flex:1;display:flex;min-height:0;position:relative}
+.col{display:flex;flex-direction:column;min-width:0;min-height:0}
+.scroll{flex:1;overflow:auto;min-height:0}
+.tabs{height:60px;flex:0 0 60px;border-top:1px solid var(--line);display:flex;background:var(--bar)}
+.tabs button{flex:1;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;position:relative}
+.tabs button .ic{font-size:18px}
+.tabs button.on{color:var(--acc);font-weight:700}
+.badge{position:absolute;top:6px;left:calc(50% + 6px);background:var(--warn);color:#fff;border-radius:9px;font-size:10px;padding:0 5px;min-width:16px;text-align:center}
+.rail{width:76px;flex:0 0 76px;border-right:1px solid var(--line);background:var(--bar);display:flex;flex-direction:column;padding-top:8px}
+.rail button{border:0;background:transparent;cursor:pointer;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;position:relative}
+.rail button .ic{font-size:18px}
+.rail button.on{color:var(--acc);font-weight:700}
+.rail .badge{top:4px;left:calc(50% + 4px)}
+.row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none}
+.row:hover{background:var(--chip)}
+.row .main{flex:1;min-width:0}
+.row .t{font-weight:600}
+.row .s{font-size:12px;color:var(--sub)}
+.row.sel{background:var(--acc2)}
+.sec{padding:10px 14px 4px;font-size:12px;color:var(--sub);font-weight:700}
+.ai{font-size:10px;border:1px solid var(--acc);color:var(--acc);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+.fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:16px;border:0;background:var(--acc);color:#fff;font-size:26px;cursor:pointer;box-shadow:var(--shadow)}
+.today{margin:10px 14px;padding:8px 12px;border-radius:8px;background:var(--acc2);font-size:13px}
+.ms{writing-mode:vertical-rl;font-family:"Yu Mincho","Noto Serif JP","MS Mincho",serif;font-size:17px;line-height:2;padding:18px;height:100%;overflow-x:auto;overflow-y:hidden;outline:none}
+.ms rt{font-size:8px;color:var(--sub)}
+.ms em.dot{font-style:normal;text-emphasis:filled sesame;-webkit-text-emphasis:filled sesame}
+.strip{flex:0 0 44px;display:flex;gap:4px;overflow-x:auto;align-items:center;padding:0 6px;border-top:1px solid var(--line);background:var(--bar)}
+.strip button{border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:4px 8px;cursor:pointer;white-space:nowrap;font-size:12px}
+.band{position:absolute;z-index:20;display:flex;gap:2px;background:#333;color:#fff;border-radius:8px;padding:4px;box-shadow:var(--shadow)}
+.band button{border:0;background:transparent;color:#fff;padding:6px 8px;cursor:pointer;font-size:12px;white-space:nowrap;border-radius:6px}
+.band button:hover{background:#555}
+.band .sep{width:1px;background:#666;margin:4px 2px}
+.pop{position:absolute;z-index:30;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);min-width:200px;padding:4px 0}
+.pop .h{font-size:11px;color:var(--sub);padding:6px 14px 2px}
+.pop button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px 14px;cursor:pointer}
+.pop button:hover{background:var(--chip)}
+.scrim{position:absolute;inset:0;background:#0004;z-index:25}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:30;background:var(--paper);border-radius:16px 16px 0 0;box-shadow:var(--shadow);max-height:75%;display:flex;flex-direction:column}
+.sheet .grip{width:36px;height:4px;border-radius:2px;background:var(--line);margin:8px auto}
+.sheet h3{margin:0;padding:4px 16px 8px;font-size:15px}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:50%;z-index:30;background:var(--paper);border-left:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column}
+.side{border-left:1px solid var(--line);display:flex;flex-direction:column}
+.subtabs{display:flex;border-bottom:1px solid var(--line)}
+.subtabs button{flex:1;border:0;background:transparent;padding:10px 0;cursor:pointer}
+.subtabs button.on{color:var(--acc);font-weight:700;box-shadow:inset 0 -2px var(--acc)}
+.search{margin:10px 12px;display:flex;gap:6px}
+.search input{flex:1;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.where{font-size:11px;color:var(--acc)}
+.gone{opacity:.5}
+.prop{padding:10px 14px;border-bottom:1px solid var(--line)}
+.prop .k{font-size:11px;color:var(--sub)}
+.prop .acts{display:flex;gap:6px;margin-top:6px}
+.prop .acts button{border:1px solid var(--line);background:var(--chip);border-radius:6px;padding:3px 10px;cursor:pointer}
+.chat{display:flex;flex-direction:column;gap:8px;padding:12px}
+.msg{max-width:85%;padding:8px 10px;border-radius:10px;font-size:13px;line-height:1.6}
+.msg.me{align-self:flex-end;background:var(--acc2)}
+.msg.ai{align-self:flex-start;background:var(--chip)}
+.msg button{margin-top:6px}
+.toast{position:absolute;left:50%;bottom:76px;transform:translateX(-50%);z-index:40;background:#333;color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;max-width:90%;box-shadow:var(--shadow);line-height:1.6}
+.empty{padding:24px;color:var(--sub);text-align:center}
+details.more summary{cursor:pointer;padding:12px 14px;color:var(--sub)}
+.est{margin:12px 14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;line-height:1.9}
+.primary{border:0;background:var(--acc);color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>メニュー構成の試作（Android 版）</h1>
+  <span class="seg" id="widthSeg">
+    <button data-w="narrow" class="on">狭い（スマホの縦）</button>
+    <button data-w="medium">中（スマホの横）</button>
+    <button data-w="wide">広い（タブレット）</button>
+  </span>
+  <span class="note">長押しは、押したまま 0.5 秒か右クリック。本文・作品名は作り話。</span>
+</header>
+<main>
+  <div id="stageWrap"><div id="stage"><div class="dev"><div class="scr" id="scr"></div></div></div></div>
+  <aside class="log">
+    <h2>試してみること</h2>
+    <div class="tasks" id="tasks"></div>
+    <h2 style="margin-top:12px">押した回数 <span class="count" id="taps">0</span></h2>
+    <button class="btnline" id="reset">数え直す</button>
+    <ul id="trail"></ul>
+    <p class="note">「試してみること」は、たどり着いた時点の押した回数を記録します。手数が多すぎる所を見つけるための欄です。</p>
+  </aside>
+</main>
+
+<script>
+/* 拡張機能の詳細メニュー（src/core/actionTree.ts の ACTION_TREE）。隠し・旧入口・ブラウザ版だけの操作は除いた */
+const TREE = [{"label":"執筆データ","entries":[{"label":"全作品執筆統計","ai":false,"detail":"全作品を合わせた執筆量のグラフ\\n\\n"},{"label":"執筆統計","ai":false,"detail":"日次・週次・月次・年次の執筆量のグラフ\\n\\n"},{"label":"作品目標設定","ai":false,"detail":"作品ごとの目標の設定\\n\\n"},{"label":"スケジュール","ai":false,"detail":"締切・発売日・連載開始から段取りを逆算して並べる\\n\\n"},{"label":"編集履歴","ai":false,"detail":"誰が何を直したかの一覧\\n\\n"}]},{"label":"作品管理","entries":[{"label":"作品名変更","ai":false,"detail":"作品の呼び名の変更\\n\\n"},{"label":"シリーズ連結","ai":false,"detail":"同じ世界・同じ人物を書いている作品どうしを結ぶ\\n\\n"},{"label":"メモ追加","ai":false,"detail":"この作品のためのメモを1つ作る\\n\\n"},{"label":"新規執筆開始","items":[{"label":"プロット起点","ai":false,"detail":"作品フォルダーを作り、設定/plot.md を用意して開く\\n\\n"},{"label":"本文起点","ai":false,"detail":"作品フォルダーと第1話のファイルを作って開く\\n\\n"}]},{"label":"既存原稿登録","items":[{"label":"未登録作品検索","ai":false,"detail":"書庫の中の、まだ登録していない作品の一覧\\n\\n"},{"label":"フォルダー登録","ai":false,"detail":"すでに原稿があるフォルダーを作品として登録\\n\\n"},{"label":"バックアップ取込","ai":false,"detail":"投稿サイトから落としたZIPをそのまま作品にする\\n\\n"},{"label":"Word 原稿変換","ai":false,"detail":"フォルダーの中の Word 文書（.docx）をまとめて .md に\\n\\n"}]},{"label":"クラウド取得","items":[{"label":"GitHubから追加","ai":false,"detail":"別の環境で書いている作品をGitHubから取り寄せて登録\\n\\n"}]},{"label":"GitHub作品管理","items":[{"label":"GitHub初期設定","ai":false,"detail":"リポジトリの作成から最初の送信までの案内\\n\\n"},{"label":"保存・同期","ai":false,"detail":"開いている原稿を保存してから、記録してGitHubへ送る\\n\\n"},{"label":"全作品同期","ai":false,"detail":"登録しているすべての作品をまとめて同期\\n\\n"},{"label":"分岐合流","ai":false,"detail":"このパソコンともう1台で別々に書いた分を、1つの原稿にそろえる\\n\\n"},{"label":"同期","ai":false,"detail":"未取得の変更・未送信の変更の確認\\n\\n"},{"label":"競合解決","ai":false,"detail":"同じ話を2つの環境で書いたときの選び直し\\n\\n"},{"label":"復元","ai":false,"detail":"GitHubに送った過去の版から原稿を今の場所へ戻す\\n\\n"}]},{"label":"編集部連携","items":[{"label":"作者／編集者切替","ai":false,"detail":"この環境を「編集者」として使う状態への切り替え\\n\\n"},{"label":"編集部へ渡す","ai":false,"detail":"この作品だけの非公開リポジトリを作って送り、編集部を招く\\n\\n"},{"label":"編集部として参加","ai":false,"detail":"作者から届いたリンクを貼って、編集部として参加する\\n\\n"},{"label":"校閲開始／終了","ai":false,"detail":"開いているファイルを「校閲中」として押さえる\\n\\n"},{"label":"直しを提案する","ai":false,"detail":"本文で選んだ所に、直した案と理由を提案として置く\\n\\n"},{"label":"校閲を終えて返す","ai":false,"detail":"押さえている校閲のロックを外し、提案を作者へ返す\\n\\n"},{"label":"編集部提案取込","ai":false,"detail":"編集部が書いた提案を取り寄せて提案パネルへ並べる\\n\\n"},{"label":"編集部連携を解除","ai":false,"detail":"編集部と決裂したときに、作者の側から連携を解く\\n\\n"},{"label":"編集部提案確認","ai":false,"detail":"編集部が出した直しの提案を1件ずつ確認\\n\\n"}]},{"label":"作品別設定","items":[{"label":"形式・ジャンル","ai":false,"detail":"短編・短編集・長編・大長編・SNS記事・創作メモ集とジャンルの選択\\n\\n"},{"label":"作品の種類","ai":false,"detail":"小説・台本（脚本・シナリオ）・漫画の原作・エッセイ・歌詞の選択\\n\\n"},{"label":"設定資料項目追加","ai":false,"detail":"人物設定に、作品に必要な項目を足す\\n\\n"},{"label":"SNS告知設定","ai":false,"detail":"更新告知に付けるハッシュタグと作品ページのURL\\n\\n"},{"label":"外部AI許可／取消","ai":false,"detail":"外部のAIにこの作品を読ませるかの設定\\n\\n"},{"label":"外部AI指示書設置","ai":false,"detail":"外部のAI向けの決まりを書いた指示書を作品フォルダーへ置く\\n\\n"},{"label":"Claude Code接続","ai":false,"detail":"Claude Code にこの拡張機能の MCP サーバーを登録する\\n\\n"}]}]},{"label":"新作構想","entries":[{"label":"支援機能全工程実行","ai":true,"detail":"AIでできることを順に全部走らせる\\n\\n"},{"label":"プロット自力作成","ai":false,"detail":"設定/plot.md を開く\\n\\n"},{"label":"プロットモード","ai":false,"detail":"左に 設定/plot.md、右に作業パネル\\n\\n"},{"label":"対話式プロット作成","ai":true,"detail":"始め方を選ぶと、AIが次に決める1点を尋ねる\\n\\n"},{"label":"プロット逆算","ai":true,"detail":"本文からログライン・テーマ・世界観・あらすじを組み直す\\n\\n"},{"label":"単話プロット作成","ai":false,"detail":"その話の「視点・目標・展開」を書く雛形\\n\\n"},{"label":"名前点検","ai":false,"detail":"響きの重なっている名前の洗い出し\\n\\n"}]},{"label":"作品執筆","entries":[{"label":"相談・助言","items":[{"label":"相談作品選択","ai":false,"detail":"相談の相手にする作品の指定\\n\\n"},{"label":"作家タイプ診断","ai":false},{"label":"相談パネルを開く","ai":true,"detail":"左の「AIに相談」パネルを開く\\n\\n"}]},{"label":"原稿整備","items":[{"label":"再開用資料","ai":false,"detail":"前回どこまで書いたかを1枚にまとめて開く\\n\\n"},{"label":"章立て提案","ai":true,"detail":"どこで章に区切るかと、その章の名前の案\\n\\n"},{"label":"章見出し反映","ai":false,"detail":"話の頭に残っている【第1章】のような見出しを章立てにする\\n\\n"},{"label":"章立て取込","ai":false,"detail":"投稿サイトのバックアップから、章立てだけを取り込む\\n\\n"},{"label":"本文 .md 化","ai":false,"detail":"本文の .txt を .md に変える\\n\\n"},{"label":"改行コード統一","ai":false,"detail":"多数派と違う改行コード（LF / CRLF）をまとめて揃える\\n\\n"},{"label":"写真から書き起こし","ai":true,"detail":"手書きのノートを撮った写真を、AIに一字一句書き起こさせる\\n\\n"}]}]},{"label":"自己校正","entries":[{"label":"校正・校閲","items":[{"label":"校正一括実行","ai":true},{"label":"誤字脱字検知","ai":true,"detail":"誤変換・脱字・衍字など、明らかな入力ミスの検知\\n\\n"},{"label":"指摘対象外管理","ai":false,"detail":"誤字脱字と推敲で指摘しない語の登録\\n\\n"},{"label":"表記ゆれ検知","ai":false,"detail":"同じ語が2通りで書かれている箇所を作品全体から探す\\n\\n"},{"label":"推敲","ai":true,"detail":"読みにくい箇所だけの指摘\\n\\n"},{"label":"プロット逸脱検知","ai":true,"detail":"プロットに無い展開・前へ進んでいない箇所の検知\\n\\n"},{"label":"単話プロット検査","ai":true,"detail":"単話プロット（視点・目標・展開）の検査\\n\\n"},{"label":"矛盾検知","ai":true,"detail":"設定との食い違いと、話どうしの食い違いの検知\\n\\n"},{"label":"位置関係の照合","ai":false,"detail":"場所の資料に書いた位置関係どうしの食い違いを照らす\\n\\n"},{"label":"見送った距離を戻す","ai":false,"detail":"矛盾検知で見送った距離の提案を、一覧から選んで戻す\\n\\n"},{"label":"伏線検知","ai":true,"detail":"後の展開を予告・示唆している記述の検知\\n\\n"},{"label":"伏線回収確認","ai":true,"detail":"未回収の伏線が、その後の話で回収されたかの確認\\n\\n"},{"label":"伏線一覧","ai":false,"detail":"登録した伏線の一覧\\n\\n"},{"label":"原稿箱を取り込む","ai":false,"detail":"出先の原稿箱で押したもの（採否・メモ・直した文）を作品へ入れる\\n\\n"},{"label":"期限切れ指摘消去","ai":false,"detail":"保存日数（既定3日）を過ぎたAIの指摘を置き場から消す\\n\\n"}]},{"label":"読者診断","items":[{"label":"冒頭診断","ai":true,"detail":"第1話の冒頭（約3,000字）だけの診断\\n\\n"},{"label":"ターゲット読者","ai":true,"detail":"この作品の読者を、3段で決めて1枚のシートにまとめる\\n\\n"},{"label":"類似場面検出","ai":false,"detail":"別の話どうしで、似た場面・似た説明の組を並べる\\n\\n"}]}]},{"label":"投稿脱稿","entries":[{"label":"広報支援","items":[{"label":"キャッチコピー案","ai":true,"detail":"方向性の違う3案を30字以内で\\n\\n"},{"label":"作品紹介文","ai":true,"detail":"投稿サイトに載せる紹介文（300〜400字）の案\\n\\n"},{"label":"更新SNS告知文作成","ai":true,"detail":"選んだ話の、ネタバレしない告知文\\n\\n"}]},{"label":"投稿・出力","items":[{"label":"新話投稿","ai":false,"detail":"未投稿の話の、変換→コピー→投稿ページ→記録の案内\\n\\n"},{"label":"投稿サイト設定","ai":false,"detail":"この作品を出すサイトの追加・変更・取り外し\\n\\n"},{"label":"ランキング記録","ai":false,"detail":"投稿サイトで見た順位の書き留め\\n\\n"},{"label":"読者反応自動取込","ai":false,"detail":"ヘルパーが読んだPV・評価などを投稿の記録へ書き足す\\n\\n"},{"label":"読者反応手動入力","ai":false,"detail":"サイトで見たPV・評価・いいねの書き留め\\n\\n"},{"label":"投稿サイトルビ取込","ai":false,"detail":"｜漢字《かんじ》 を ｛漢字｜かんじ｝ の形へ直す\\n\\n"},{"label":"設定資料集出力","ai":false,"detail":"抽出済みのJSONから、読むための設定資料集を書き出す\\n\\n"},{"label":"提供先別出力","ai":false,"detail":"渡す相手に合わせて項目を絞った設定資料を書き出す\\n\\n"},{"label":"IME辞書出力","ai":false,"detail":"作品の固有名詞と造語を、IMEのユーザー辞書の形で書き出す\\n\\n"}]}]},{"label":"電子出版等","entries":[{"label":"PDF出力","ai":false,"detail":"本文を印刷用に組版してブラウザで開く\\n\\n"},{"label":"EPUBエディター","ai":false,"detail":"本の見た目を確かめながら決める画面\\n\\n"}]},{"label":"資料管理","entries":[{"label":"資料抽出","items":[{"label":"一括抽出","ai":true,"detail":"本文から人物・場所・スキル・組織・世界観をまとめて抽出\\n\\n"},{"label":"人物抽出","ai":true,"detail":"本文から登場人物だけを取り出して保存\\n\\n"},{"label":"場所抽出","ai":true,"detail":"本文から場所だけを取り出して保存\\n\\n"},{"label":"スキル抽出","ai":true,"detail":"本文から能力だけを取り出して保存\\n\\n"},{"label":"組織抽出","ai":true,"detail":"本文から組織だけを取り出して保存\\n\\n"},{"label":"世界観抽出","ai":true,"detail":"本文から世界観だけを取り出して保存\\n\\n"},{"label":"各話あらすじ","ai":true,"detail":"話ごとの150字以内のあらすじ\\n\\n"},{"label":"人物重複統合","ai":false,"detail":"同じ人物が別々に登録されてしまった組をまとめる\\n\\n"},{"label":"設定資料更新分反映","ai":false,"detail":"抽出で見つかった既存人物への更新の反映\\n\\n"}]},{"label":"資料閲覧","items":[{"label":"設定資料集閲覧","ai":false,"detail":"抽出した登場人物・能力・場所・組織・世界観の一覧\\n\\n"},{"label":"人物相関図","ai":false,"detail":"登場人物のつながりの図\\n\\n"},{"label":"場所の略図","ai":false,"detail":"場所どうしの位置を方角と距離で置いた図\\n\\n"},{"label":"年表","ai":false,"detail":"話数順と時系列順で並べた、話ごとの出来事\\n\\n"},{"label":"作中時期・別筋登録","ai":false,"detail":"年表を時系列順に並べるための、作中の時期と別の筋の登録\\n\\n"},{"label":"紹介文・あらすじ","ai":false,"detail":"作品紹介文と各話あらすじのプレビュー\\n\\n"},{"label":"場面検索","ai":false,"detail":"言葉で本文の場面を探し、押すとその箇所を開く\\n\\n"}]}]},{"label":"環境設定","entries":[{"label":"設定管理","ai":false,"detail":"文字数の数え方・執筆目標・AIの応答待ち時間などの設定\\n\\n"},{"label":"AI","items":[{"label":"AI設定","ai":false,"detail":"使うAIとモデルの選択\\n\\n"},{"label":"AI接続確認","ai":false,"detail":"設定したAIに接続できるかの確認\\n\\n"}]},{"label":"初回設定","items":[{"label":"AIチューニング","ai":true,"detail":"そのモデルが実際に読める長さと、必要な待ち時間の実測\\n\\n"},{"label":"AIチューニング一覧","ai":false,"detail":"AIチューニングで測った値の、モデルごとの一覧\\n\\n"},{"label":"AIチューニング削除","ai":false,"detail":"測った記録をモデルごとに消す\\n\\n"},{"label":"書庫集約","ai":false,"detail":"別々の場所の作品を1つの書庫（フォルダー）へ写す\\n\\n"}]},{"label":"AI相談強化","items":[]}]},{"label":"ヘルプ","entries":[{"label":"使い方","ai":false,"detail":"この拡張機能でできることを1つの文書にまとめて開く\\n\\n"},{"label":"場面別案内","ai":false,"detail":"場面を選ぶと、押す場所を順に光らせて案内する\\n\\n"},{"label":"ログ表示","ai":false,"detail":"AIが返したエラーの詳細の記録\\n\\n"},{"label":"障害報告用の記録","ai":false,"detail":"不具合を伝えるための記録を、テキスト1枚に書き出す\\n\\n"},{"label":"相談ログ","ai":false,"detail":"AIとの相談のやり取りの記録\\n\\n"},{"label":"バージョン確認","ai":false,"detail":"この拡張機能の版と、いまの環境の表示\\n\\n"}]}];
+
+/* 大分類・小分類ごとの Android での置き場（設計書 4.4.2【案】） */
+const PLACE = {
+  '執筆データ': '［ほか］→ 執筆統計',
+  '作品管理': '作品を長押し',
+  '作品管理/新規執筆開始': '［作品］の［＋］→ 新しく作る',
+  '作品管理/既存原稿登録': '［作品］の［＋］',
+  '作品管理/クラウド取得': '［作品］の［＋］→ GitHub から取り寄せる',
+  '作品管理/GitHub作品管理': '［ほか］→ 設定 → GitHub と同期',
+  '作品管理/作品別設定': '作品を長押し → 作品の設定',
+  '作品管理/編集部連携': '',
+  '新作構想': '［ほか］→ プロット',
+  '作品執筆/相談・助言': '上のバーの［…］・「AIに相談」',
+  '作品執筆/原稿整備': '［書く］の上のバーの［…］',
+  '自己校正': '話を長押し・［書く］の［…］→ AIを走らせる（結果は［提案］）',
+  '資料管理': '［ほか］→ 設定資料',
+  '投稿脱稿': '［ほか］→ 書き出し・広報',
+  '電子出版等': '',
+  '環境設定': '［ほか］→ 設定',
+  '環境設定/初回設定': '［ほか］→ 設定のいちばん下',
+  'ヘルプ': '［ほか］→ ヘルプ',
+};
+/* Android では出さないもの（共通設計書2章の冒頭・設計書 3章 #12・#13・4.4.3） */
+const HIDE = {
+  '電子出版等': 'PDF の印刷と EPUB エディターは最初の版では作らない',
+  '作品管理/編集部連携': '編集部連携は最初の版では作らない',
+  '未登録作品検索': 'Android ではフォルダーを選ばない（4.4.3）',
+  'フォルダー登録': 'Android ではフォルダーを選ばない（4.4.3）',
+  'Claude Code接続': 'MCP サーバーを持たない（3章 #12）',
+  '外部AI指示書設置': '外の AI に作品を触らせるのはパソコン側（3章 #12）',
+  '外部AI許可／取消': '外の AI に作品を触らせるのはパソコン側（3章 #12）',
+  '改行コード統一': 'Android では改行を選ぶ場面が無い（試作での仮の判断）',
+};
+
+/* 全操作を平らにする */
+const ALL = [];
+for (const g of TREE) for (const e of g.entries) {
+  if (e.items) for (const a of e.items) ALL.push({...a, g:g.label, s:e.label});
+  else ALL.push({...e, g:g.label, s:null});
+}
+function placeOf(a){ return PLACE[a.g+'/'+a.s] ?? PLACE[a.g] ?? ''; }
+function hideOf(a){ return HIDE[a.label] || HIDE[a.g+'/'+a.s] || HIDE[a.g] || ''; }
+function find(label){ return ALL.find(a=>a.label===label); }
+
+/* 作り話のデータ */
+const WORKS = [
+  {id:1,t:'灯台守の娘_確認用',eps:24,chars:'18.2万字',last:'今日',unsent:2,conflict:false},
+  {id:2,t:'鉄路の向こう_確認用',eps:9,chars:'6.1万字',last:'3日前',unsent:0,conflict:true},
+  {id:3,t:'冬の図書室_確認用',eps:3,chars:'1.4万字',last:'先月',unsent:0,conflict:false},
+];
+const EPS = [
+  {ch:'第一章　港',items:[{n:1,t:'霧の朝'},{n:2,t:'灯の番'},{n:3,t:'手紙'}]},
+  {ch:'第二章　岬',items:[{n:4,t:'岬の小屋',unsent:true},{n:5,t:'嵐の前',unsent:true}]},
+];
+let proposals = [
+  {k:'誤字脱字',t:'第5話「岬の小屋に着いた」→「岬の小屋に着いた。」（句点が無い）'},
+  {k:'推敲',t:'第5話「そして、そして」の繰り返しを一つにする案'},
+  {k:'設定資料の更新',t:'人物「白波 澪」に「灯台の鍵を持つ」を足す案'},
+];
+
+/* 試してみること */
+const TASKS = [
+  {id:'表記ゆれ検知',t:'表記ゆれ検知を走らせる'},
+  {id:'推敲',t:'第3話の推敲を頼む'},
+  {id:'AI設定',t:'使う AI を切り替える（AI の設定を開く）'},
+  {id:'GitHubから追加',t:'GitHub から作品を取り寄せる'},
+  {id:'ルビ',t:'本文の語にルビを振る'},
+  {id:'人物相関図',t:'人物相関図を見る'},
+  {id:'執筆統計',t:'今週の字数を見る（執筆統計）'},
+];
+const taskDone = {};
+
+/* 状態 */
+const S = { w:'narrow', tab:'works', work:WORKS[0], ep:3, otherPage:null, sideTab:'prop', drawer:null, horiz:false };
+let taps = 0;
+const scr = document.getElementById('scr');
+const SIZE = { narrow:[360,760], medium:[760,420], wide:[1180,760] };
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function tap(what){
+  taps++; document.getElementById('taps').textContent = taps;
+  const li = document.createElement('li'); li.textContent = taps+'. '+what;
+  const tr = document.getElementById('trail'); tr.prepend(li);
+}
+function renderTasks(){
+  document.getElementById('tasks').innerHTML = TASKS.map(k=>
+    `<label class="${taskDone[k.id]!=null?'done':''}">${taskDone[k.id]!=null?'✓':'・'} ${esc(k.t)}${taskDone[k.id]!=null?`（${taskDone[k.id]}回で）`:''}</label>`).join('');
+}
+document.getElementById('reset').onclick = ()=>{ taps=0; document.getElementById('taps').textContent=0; document.getElementById('trail').innerHTML=''; for(const k in taskDone) delete taskDone[k]; renderTasks(); };
+
+/* 操作を「走らせた」ことにする（試作なので中身は動かない） */
+function run(label, via){
+  const a = find(label);
+  const place = a ? placeOf(a) : '';
+  if (TASKS.some(k=>k.id===label) && taskDone[label]==null) { taskDone[label]=taps; renderTasks(); }
+  if (label==='AI設定' || label==='設定管理') { goOther('settings'); }
+  toast(`（試作）「${esc(label)}」を開きます${a&&a.ai?' <span class="ai">AI</span>':''}<br><span style="opacity:.8">入った道：${esc(via)}${place?'／決めた置き場：'+esc(place):''}</span>`);
+}
+let toastTimer;
+function toast(html){
+  scr.querySelectorAll('.toast').forEach(n=>n.remove());
+  const d=document.createElement('div'); d.className='toast'; d.innerHTML=html; scr.appendChild(d);
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>d.remove(),3200);
+}
+
+/* 長押し（0.5秒）と右クリック */
+function longPress(el, fn){
+  let t;
+  el.addEventListener('pointerdown', e=>{ t=setTimeout(()=>{ t=null; el.dataset.lp='1'; fn(e); },500); });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,()=>{ if(t){clearTimeout(t);t=null;} }));
+  el.addEventListener('contextmenu', e=>{ e.preventDefault(); el.dataset.lp='1'; fn(e); });
+}
+function clickUnlessLong(el, fn){ el.addEventListener('click', e=>{ if(el.dataset.lp){ delete el.dataset.lp; return; } fn(e); }); }
+
+/* その場で出す品書き（2段目。5〜7個まで・階層なし） */
+function popMenu(e, title, items){
+  closePops();
+  const r = scr.getBoundingClientRect(), k = scale();
+  const scrim = document.createElement('div'); scrim.className='scrim'; scrim.style.background='transparent'; scrim.onclick=closePops;
+  const p = document.createElement('div'); p.className='pop';
+  p.innerHTML = `<div class="h">${esc(title)}</div>` + items.map((it,i)=>`<button data-i="${i}">${esc(it[0])}${find(it[1]||it[0])?.ai?'<span class="ai">AI</span>':''}</button>`).join('');
+  scr.append(scrim,p);
+  let x=(e.clientX-r.left)/k, y=(e.clientY-r.top)/k;
+  const W=scr.clientWidth,H=scr.clientHeight;
+  x=Math.min(x,W-p.offsetWidth-8); y=Math.min(y,H-p.offsetHeight-8);
+  p.style.left=Math.max(8,x)+'px'; p.style.top=Math.max(8,y)+'px';
+  p.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const it=items[b.dataset.i]; tap(title+' → '+it[0]); closePops(); it[2]?it[2]():run(it[1]||it[0], title+'（長押し）'); });
+}
+function closePops(){ scr.querySelectorAll('.pop,.scrim,.band,.sheet').forEach(n=>n.remove()); }
+function sheet(title, html, bind){
+  closePops();
+  const scrim=document.createElement('div'); scrim.className='scrim'; scrim.onclick=closePops;
+  const s=document.createElement('div'); s.className='sheet'; s.innerHTML=`<div class="grip"></div><h3>${esc(title)}</h3><div class="scroll">${html}</div>`;
+  scr.append(scrim,s); bind&&bind(s);
+}
+
+/* ===== 画面の部品（段では並べ方だけを変える） ===== */
+function appbar(title, opts={}){
+  return `<div class="appbar">
+    ${opts.back?`<button class="ib" data-act="back" title="戻る">←</button>`:''}
+    <span class="ttl">${esc(title)}</span>
+    ${opts.extra||''}
+    ${opts.more?`<button class="ib" data-act="more" title="その他">⋯</button>`:''}
+  </div>`;
+}
+
+function worksView(){
+  return `<div class="col" style="flex:1;position:relative">
+    ${appbar('作品',{extra:`<button class="ib" data-act="search" title="すべての機能">🔍</button>`})}
+    <div class="scroll">
+      <div class="today">今日 1,240字（3作品の合計）</div>
+      ${WORKS.map(w=>`<div class="row" data-work="${w.id}"><div class="main"><div class="t">${esc(w.t)}</div>
+        <div class="s">${w.eps}話・${w.chars}・最後に書いた日：${w.last}</div></div>
+        ${w.unsent?`<span class="pill">送っていない ${w.unsent}</span>`:''}${w.conflict?`<span class="pill" style="color:var(--warn)">競合</span>`:''}</div>`).join('')}
+    </div>
+    <button class="fab" data-act="add" title="作品を足す">＋</button>
+  </div>`;
+}
+function epsView(opts={}){
+  return `<div class="col" style="flex:1">
+    ${appbar(S.work.t,{back:opts.back!==false && S.w==='narrow', more:true})}
+    <div class="scroll">
+      <div class="row" data-ep="new"><div class="main"><div class="t">＋ 第6話を書く</div><div class="s">いちばん新しい話の続き</div></div></div>
+      ${EPS.map(c=>`<div class="sec">${esc(c.ch)}</div>`+c.items.map(e=>`<div class="row ${S.ep===e.n?'sel':''}" data-ep="${e.n}"><div class="main"><div class="t">第${e.n}話　${esc(e.t)}</div><div class="s">${2800+e.n*137}字</div></div>${e.unsent?'<span class="pill">送っていない</span>':''}</div>`).join('')).join('')}
+    </div>
+  </div>`;
+}
+const BODY = `　霧が晴れると、<ruby>灯台<rt>とうだい</rt></ruby>の白い壁が見えた。澪は鍵を握り直して、石段を一段ずつ上った。
+　「父さん、今夜も<em class="dot">灯</em>を入れるの」
+　返事はない。風だけが、岬の草を寝かせていく。
+　手紙は三日前に届いた。差出人の名前は、波に濡れたように滲んでいた。`;
+function editorView(){
+  const ep = EPS.flatMap(c=>c.items).find(e=>e.n===S.ep) || {n:S.ep,t:''};
+  return `<div class="col" style="flex:1;min-width:0">
+    ${appbar(`第${ep.n}話　${ep.t}`,{back:S.w==='narrow',more:true,extra:`<span class="pill">保存済み</span><button class="ib" data-act="horiz" title="横で書く／縦で書く">${S.horiz?'縦で書く':'横で書く'}</button>${S.w==='medium'?`<button class="ib" data-act="drawer" title="提案・資料">☰</button>`:''}`})}
+    <div class="body"><div class="ms" id="ms" contenteditable="true" spellcheck="false" style="${S.horiz?'writing-mode:horizontal-tb;overflow-y:auto;overflow-x:hidden':''}">${BODY.split('\n').map(l=>`<p style="margin:0">${l}</p>`).join('')}</div></div>
+    <div class="strip">${['取り消し','やり直し','ルビ','傍点','「」','――','……',S.horiz?'縦で書く':'横で書く'].map(b=>`<button data-strip="${b}">${b}</button>`).join('')}</div>
+  </div>`;
+}
+function propsList(){
+  if(!proposals.length) return `<div class="empty">未決の提案はありません</div>`;
+  return `<div style="padding:8px 14px;display:flex;justify-content:flex-end"><button class="btnline" data-act="takeall">まとめて採る</button></div>`+
+    proposals.map((p,i)=>`<div class="prop"><div class="k">${esc(p.k)}</div><div>${esc(p.t)}</div><div class="acts"><button data-take="${i}">採る</button><button data-skip="${i}">見送る</button></div></div>`).join('');
+}
+function propsView(){
+  return `<div class="col" style="flex:1">${appbar('提案',{})}<div class="scroll">${propsList()}</div></div>`;
+}
+function materialsList(){
+  return `<div class="sec">人物</div>
+    <div class="row" data-mat="白波 澪"><div class="main"><div class="t">白波 澪</div><div class="s">灯台守の娘・十七歳</div></div></div>
+    <div class="row" data-mat="白波 宗一"><div class="main"><div class="t">白波 宗一</div><div class="s">澪の父・灯台守</div></div></div>
+    <div class="sec">場所</div>
+    <div class="row" data-mat="岬の灯台"><div class="main"><div class="t">岬の灯台</div><div class="s">港から北へ徒歩一時間</div></div></div>`;
+}
+
+/* ［ほか］の中身（設計書 4.4.2【案】） */
+const OTHER = [
+  {key:'materials',t:'設定資料',s:'人物・場所・世界観・伏線',groups:['資料管理']},
+  {key:'plot',t:'プロット',s:'この作品の構想・名前点検',groups:['新作構想']},
+  {key:'stats',t:'執筆統計',s:'今日・今週の字数・目標・スケジュール',groups:['執筆データ']},
+  {key:'publish',t:'書き出し・広報',s:'投稿・出力・紹介文・告知',groups:['投稿脱稿']},
+  {key:'settings',t:'設定',s:'AI・GitHub と同期・表示'},
+  {key:'help',t:'ヘルプ',s:'使い方・場面別案内・ログ・版',groups:['ヘルプ']},
+];
+function opsRows(list, via){
+  return list.map(a=>{
+    const h=hideOf(a);
+    return `<div class="row ${h?'gone':''}" data-run="${esc(a.label)}" data-via="${esc(via)}"><div class="main"><div class="t">${esc(a.label)}${a.ai?'<span class="ai">AI</span>':''}</div>${a.detail?`<div class="s">${esc(a.detail.slice(0,60))}${a.detail.length>60?'…':''}</div>`:''}${h?`<div class="s" style="color:var(--warn)">Android では出さない：${esc(h)}</div>`:''}</div></div>`;
+  }).join('');
+}
+function groupPage(groups, via){
+  let h='';
+  for(const gl of groups){ const g=TREE.find(x=>x.label===gl); if(!g) continue;
+    const loose=g.entries.filter(e=>!e.items);
+    if(loose.length) h+=opsRows(loose.map(a=>({...a,g:g.label,s:null})).filter(a=>!hideOf(a)),via);
+    for(const e of g.entries.filter(e=>e.items)){
+      const items=e.items.map(a=>({...a,g:g.label,s:e.label})).filter(a=>!hideOf(a));
+      if(!items.length) continue;
+      h+=`<div class="sec">${esc(e.label)}</div>`+opsRows(items,via);
+    }
+  }
+  return h;
+}
+function settingsPage(){
+  const gh = TREE.find(g=>g.label==='作品管理').entries.find(e=>e.label==='GitHub作品管理');
+  const init = TREE.find(g=>g.label==='環境設定').entries.find(e=>e.label==='初回設定');
+  return `<div class="sec">AI</div>
+    <div class="row" data-run="AI設定" data-via="設定 → AI"><div class="main"><div class="t">使う AI と鍵</div><div class="s">クラウドの AI・家の中のパソコンの AI・API キー</div></div></div>
+    <div class="row" data-run="AI設定" data-via="設定 → AI"><div class="main"><div class="t">機能ごとの割り当て</div><div class="s">誤字脱字は手元、推敲はクラウド、など</div></div></div>
+    <div class="row" data-run="AI接続確認" data-via="設定 → AI"><div class="main"><div class="t">AI接続確認</div></div></div>
+    <details class="more"><summary>詳しい設定（チャンクの字数・待ち時間など）</summary><div class="row"><div class="main"><div class="s">ふだんは畳んでおく</div></div></div></details>
+    <div class="sec">GitHub と同期</div>${opsRows(gh.items.map(a=>({...a,g:'作品管理',s:'GitHub作品管理'})),'設定 → GitHub と同期')}
+    <div class="sec">表示</div>
+    <div class="row" data-run="書体" data-via="設定 → 表示"><div class="main"><div class="t">書体</div><div class="s">明朝（Noto Serif JP）</div></div></div>
+    <div class="row" data-run="字の大きさ" data-via="設定 → 表示"><div class="main"><div class="t">字の大きさ</div></div></div>
+    <div class="row" data-run="縦横の既定" data-via="設定 → 表示"><div class="main"><div class="t">縦横の既定</div><div class="s">縦</div></div></div>
+    <div class="sec">いちばん下</div>
+    <div class="row" data-run="確認省略解除" data-via="設定のいちばん下"><div class="main"><div class="t">確認省略解除</div></div></div>
+    ${opsRows(init.items.map(a=>({...a,g:'環境設定',s:'初回設定'})),'設定 → 初回設定')}`;
+}
+function otherView(){
+  if(S.otherPage==='all') return allView();
+  if(S.otherPage==='chat') return chatView();
+  if(S.otherPage){
+    const o=OTHER.find(x=>x.key===S.otherPage);
+    const inner = o.key==='settings'?settingsPage(): o.key==='materials'? materialsList()+`<div class="sec" style="margin-top:8px">操作</div>`+groupPage(o.groups,'［ほか］→ '+o.t) : groupPage(o.groups,'［ほか］→ '+o.t);
+    return `<div class="col" style="flex:1">${appbar(o.t,{back:true})}<div class="scroll">${inner}</div></div>`;
+  }
+  return `<div class="col" style="flex:1">${appbar('ほか',{})}
+    <div class="scroll">
+      <div class="row" data-other="all"><div class="main"><div class="t">🔍 すべての機能</div><div class="s">名前で探す（2〜3文字で絞れる）</div></div></div>
+      <div class="row" data-other="chat"><div class="main"><div class="t">💬 AIに相談</div><div class="s">「表記ゆれを見て」のように頼めば、その場で動く</div></div></div>
+      <div class="row" data-run="簡単ステップメニュー" data-via="［ほか］"><div class="main"><div class="t">➜ 次にやること</div><div class="s">簡単ステップメニュー</div></div></div>
+      <div class="sec">いつもの置き場</div>
+      ${OTHER.map(o=>`<div class="row" data-other="${o.key}"><div class="main"><div class="t">${o.t}</div><div class="s">${o.s}</div></div><span>›</span></div>`).join('')}
+    </div></div>`;
+}
+let allQuery='', showGone=false;
+function allRows(){
+  const q=allQuery.trim();
+  const list=ALL.filter(a=>(showGone||!hideOf(a)) && (!q || (a.g+a.s+a.label+(a.detail||'')).includes(q)));
+  if(!list.length) return `<div class="empty">見つかりません。「AIに相談」で頼むこともできます</div>`;
+  return list.map(a=>{const h=hideOf(a),p=placeOf(a);return `<div class="row ${h?'gone':''}" data-run="${esc(a.label)}" data-via="すべての機能"><div class="main"><div class="t">${esc(a.label)}${a.ai?'<span class="ai">AI</span>':''}</div><div class="s">${esc(a.g)}${a.s?' → '+esc(a.s):''}</div>${h?`<div class="s" style="color:var(--warn)">Android では出さない：${esc(h)}</div>`:p?`<div class="where">いつもの置き場：${esc(p)}</div>`:''}</div></div>`}).join('');
+}
+function allView(){
+  const n=ALL.filter(a=>!hideOf(a)).length;
+  return `<div class="col" style="flex:1">${appbar('すべての機能',{back:true})}
+    <div class="search"><input id="q" placeholder="例：表記、推敲、相関" value="${esc(allQuery)}"></div>
+    <div style="padding:0 14px 6px" class="note"><label><input type="checkbox" id="gone" ${showGone?'checked':''}> Android で出さないものも見る</label>（出すもの ${n}件／拡張機能 ${ALL.length}件）</div>
+    <div class="scroll" id="allList">${allRows()}</div></div>`;
+}
+let chatLog=[{who:'ai',t:'何をしましょう？「表記ゆれを見て」「人物相関図を出して」のように頼めます。'}];
+function chatView(){
+  return `<div class="col" style="flex:1">${appbar('AIに相談',{back:S.w==='narrow'||S.otherPage==='chat'})}
+    <div class="scroll"><div class="chat">${chatLog.map((m,i)=>`<div class="msg ${m.who}">${esc(m.t)}${m.run?`<br><button class="btnline" data-run="${esc(m.run)}" data-via="AIに相談">「${esc(m.run)}」を走らせる</button>`:''}</div>`).join('')}</div></div>
+    <div class="search"><input id="say" placeholder="頼みたいことを書く"><button class="primary" data-act="say">送る</button></div></div>`;
+}
+function answer(text){
+  // 試作：名前の一部が入っていれば、その操作を案内する（本物は拡張機能の「AIに相談」と同じ仕組み）
+  const cand = ALL.filter(a=>!hideOf(a)).map(a=>{
+    let sc=0; for(let n=a.label.length;n>=2&&!sc;n--) for(let i=0;i+n<=a.label.length;i++) if(text.includes(a.label.slice(i,i+n))){sc=n;break;}
+    return {a,sc};
+  }).filter(x=>x.sc>=2).sort((x,y)=>y.sc-x.sc);
+  if(!cand.length) return {who:'ai',t:'（試作）合う機能が見つかりませんでした。「すべての機能」から名前で探せます。'};
+  const a=cand[0].a, p=placeOf(a);
+  return {who:'ai',t:`「${a.label}」ですね。${p?'いつもは '+p+' にあります。':''}`,run:a.label};
+}
+
+/* AIを走らせる（画面 F。機能 → 範囲 → 見積もり → 走らせる） */
+function runSheet(preset){
+  const ais = ALL.filter(a=>a.ai && !hideOf(a) && (a.g==='自己校正'||a.g==='資料管理'));
+  sheet('AIを走らせる', `<div class="sec">1. 機能</div>`+ais.map(a=>`<div class="row" data-pick="${esc(a.label)}"><div class="main"><div class="t">${esc(a.label)}</div></div>${preset===a.label?'✓':''}</div>`).join(''), s=>{
+    s.querySelectorAll('[data-pick]').forEach(r=>r.onclick=()=>{ tap('AIを走らせる → '+r.dataset.pick); estimate(r.dataset.pick); });
+  });
+}
+function estimate(label){
+  sheet('AIを走らせる', `<div class="sec">2. 範囲</div>
+    <div class="row" data-r="この話"><div class="main"><div class="t">この話（第${S.ep}話）</div></div></div>
+    <div class="row" data-r="この章"><div class="main"><div class="t">この章</div></div></div>
+    <div class="row" data-r="送っていない話"><div class="main"><div class="t">まだ見ていない話</div></div></div>`, s=>{
+    s.querySelectorAll('[data-r]').forEach(r=>r.onclick=()=>{ tap('範囲 → '+r.dataset.r);
+      sheet('見積もり', `<div class="est">機能：${esc(label)}<br>範囲：${esc(r.dataset.r)}（1話・約3,200字）<br>AI：クラウドの AI（使う AI の設定どおり）<br>費用の目安：約2円</div>
+        <div style="padding:0 14px 16px;display:flex;gap:8px;justify-content:flex-end"><button class="btnline" data-act="ai-change">この回だけ AI を替える</button><button class="primary" data-act="go">走らせる</button></div>`, s2=>{
+        s2.querySelector('[data-act=go]').onclick=()=>{ tap('走らせる'); closePops(); proposals.unshift({k:label,t:`第${S.ep}話の「${label}」の結果（作り話）`}); run(label,'AIを走らせる'); render(); };
+        s2.querySelector('[data-act=ai-change]').onclick=()=>{ tap('この回だけ AI を替える'); toast('（試作）この回だけ使う AI を選ぶ（設計書 7章）'); };
+      });
+    });
+  });
+}
+
+/* ===== 段ごとの並べ方 ===== */
+const NAV = [['works','作品','📚'],['write','書く','✎'],['props','提案','💡'],['other','ほか','≡']];
+function navHtml(kind){
+  return `<div class="${kind}">`+NAV.map(([k,l,ic])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}"><span class="ic">${ic}</span>${l}${k==='props'&&proposals.length?`<span class="badge">${proposals.length}</span>`:''}</button>`).join('')+`</div>`;
+}
+function mainForTab(){
+  if(S.tab==='works') return S.w==='narrow' && S.inWork ? epsView() : worksView();
+  if(S.tab==='write') return editorView();
+  if(S.tab==='props') return propsView();
+  return otherView();
+}
+function sidePanel(){
+  const inner = S.sideTab==='prop'?propsList(): S.sideTab==='mat'?materialsList(): S.sideTab==='chat'? '' : `<div class="empty">この話のメモ（作り話）<br>・手紙の差出人は第8話で明かす</div>`;
+  if(S.sideTab==='chat') return `<div class="side col" style="width:320px;flex:0 0 320px"><div class="subtabs">${sideTabs()}</div>${chatView().replace(/<div class="appbar">[\s\S]*?<\/div>/,'')}</div>`;
+  return `<div class="side col" style="width:320px;flex:0 0 320px"><div class="subtabs">${sideTabs()}</div><div class="scroll">${inner}</div></div>`;
+}
+function sideTabs(){ return [['prop','提案'],['mat','資料'],['memo','メモ'],['chat','相談']].map(([k,l])=>`<button data-side="${k}" class="${S.sideTab===k?'on':''}">${l}${k==='prop'&&proposals.length?'（'+proposals.length+'）':''}</button>`).join(''); }
+
+function render(){
+  const [W,H]=SIZE[S.w]; scr.style.width=W+'px'; scr.style.height=H+'px';
+  let h='';
+  if(S.w==='narrow'){
+    const hideTabs = S.tab==='write';
+    h = `<div class="body">${mainForTab()}</div>${hideTabs?'':navHtml('tabs')}`;
+  } else {
+    let center;
+    if(S.tab==='write'){
+      center = `<div class="col" style="width:${S.w==='medium'?280:260}px;flex:0 0 auto;border-right:1px solid var(--line)">${epsView({back:false})}</div>${editorView()}${S.w==='wide'?sidePanel():''}`;
+    } else center = mainForTab();
+    h = `<div class="body">${navHtml('rail')}${center}</div>`;
+    if(S.w==='medium' && S.drawer && S.tab==='write') h += `<div class="drawer"><div class="subtabs">${sideTabs()}<button data-act="closedrawer">✕</button></div><div class="scroll">${S.sideTab==='mat'?materialsList():propsList()}</div></div>`;
+  }
+  scr.innerHTML = h;
+  bind();
+  fit();
+}
+function scale(){ const st=document.getElementById('stage'); const m=/scale\(([\d.]+)\)/.exec(st.style.transform); return m?+m[1]:1; }
+function fit(){
+  const wrap=document.getElementById('stageWrap'), st=document.getElementById('stage');
+  st.style.transform='none';
+  // 幅と高さの両方に収める（下のタブが画面の外へ出ないように）
+  const dev=st.firstElementChild;
+  const roomH=window.innerHeight-wrap.getBoundingClientRect().top-16;
+  const k=Math.min(1,(wrap.clientWidth-4)/dev.offsetWidth,Math.max(.35,roomH/dev.offsetHeight));
+  st.style.transform=`scale(${k})`; wrap.style.height=(dev.offsetHeight*k)+'px';
+}
+window.addEventListener('resize',fit);
+
+function goOther(page){ S.tab='other'; S.otherPage=page; render(); }
+
+function bind(){
+  scr.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{ tap('タブ：'+b.textContent.replace(/\d+$/,'').trim()); S.tab=b.dataset.tab; if(S.tab==='other') S.otherPage=null; if(S.tab==='works') S.inWork=false; render(); });
+  scr.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{ tap('横の板：'+b.textContent); S.sideTab=b.dataset.side; render(); });
+  scr.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>{
+    const a=b.dataset.act;
+    if(a==='back'){ tap('戻る'); if(S.tab==='other'){ S.otherPage=null; } else if(S.tab==='write'){ S.tab='works'; S.inWork=true; } else if(S.tab==='works'){ S.inWork=false; } render(); }
+    else if(a==='add'){ tap('［＋］'); sheet('作品を足す',`<div class="row" data-x="GitHubから追加"><div class="main"><div class="t">GitHub から取り寄せる</div><div class="s">パソコンで書いている作品を持ってくる</div></div></div><div class="row" data-x="新しく作る"><div class="main"><div class="t">新しく作る</div><div class="s">題を入れるだけ。GitHub に置くかはあとで訊く</div></div></div>`,s=>s.querySelectorAll('[data-x]').forEach(r=>r.onclick=()=>{ tap('作品を足す → '+r.querySelector('.t').textContent); closePops(); run(r.dataset.x,'［作品］の［＋］'); })); }
+    else if(a==='more'){ tap('上のバーの［…］'); popMenu(e, S.tab==='write'?'この話':'この作品', [['新しい話'],['章立て提案'],['AIを走らせる',null,()=>runSheet()],['相談パネルを開く','相談パネルを開く',()=>{ if(S.w==='wide'){S.sideTab='chat';render();} else goOther('chat'); }],['メモ追加'],['再開用資料'],['書き出し',null,()=>goOther('publish')]]); }
+    else if(a==='search'){ tap('🔍'); goOther('all'); }
+    else if(a==='horiz'){ tap(S.horiz?'縦で書く':'横で書く'); S.horiz=!S.horiz; render(); }
+    else if(a==='drawer'){ tap('☰ 提案・資料'); S.drawer=true; render(); }
+    else if(a==='closedrawer'){ tap('引き出しを閉じる'); S.drawer=false; render(); }
+    else if(a==='takeall'){ tap('まとめて採る'); proposals=[]; render(); toast('（試作）未決の提案をまとめて採りました'); }
+    else if(a==='say'){ const i=scr.querySelector('#say'); if(!i.value.trim()) return; tap('相談に送る：'+i.value); chatLog.push({who:'me',t:i.value}); chatLog.push(answer(i.value)); render(); }
+  });
+  scr.querySelectorAll('[data-work]').forEach(r=>{
+    const w=WORKS.find(x=>x.id==r.dataset.work);
+    clickUnlessLong(r,()=>{ tap('作品：'+w.t); S.work=w; S.inWork=true; if(S.w!=='narrow'){ S.tab='write'; } render(); });
+    longPress(r,e=>{ tap('作品を長押し：'+w.t); popMenu(e,w.t,[['題を変える','作品名変更'],['シリーズ連結'],['作品の設定',null,()=>sheet('作品の設定',opsRows(TREE.find(g=>g.label==='作品管理').entries.find(x=>x.label==='作品別設定').items.map(a=>({...a,g:'作品管理',s:'作品別設定'})).filter(a=>!hideOf(a)),'作品を長押し → 作品の設定'),s=>bindRuns(s))],['同期','同期・競合解決'],['登録から外す']]); });
+  });
+  scr.querySelectorAll('[data-ep]').forEach(r=>{
+    clickUnlessLong(r,()=>{ tap(r.dataset.ep==='new'?'第6話を書く':'第'+r.dataset.ep+'話'); S.ep=r.dataset.ep==='new'?5:+r.dataset.ep; S.tab='write'; render(); });
+    if(r.dataset.ep!=='new') longPress(r,e=>{ const n=r.dataset.ep; tap('第'+n+'話を長押し'); popMenu(e,'第'+n+'話',[['誤字脱字検知'],['推敲'],['矛盾検知'],['各話あらすじ'],['校正一括実行']]); });
+  });
+  scr.querySelectorAll('[data-other]').forEach(r=>r.onclick=()=>{ tap('［ほか］→ '+r.querySelector('.t').textContent); S.otherPage=r.dataset.other; render(); });
+  scr.querySelectorAll('[data-take],[data-skip]').forEach(b=>b.onclick=()=>{ const i=+(b.dataset.take??b.dataset.skip); tap((b.dataset.take!=null?'採る：':'見送る：')+proposals[i].k); proposals.splice(i,1); render(); });
+  scr.querySelectorAll('[data-mat]').forEach(r=>{ clickUnlessLong(r,()=>{ tap('資料：'+r.dataset.mat); toast(`（試作）「${esc(r.dataset.mat)}」の1件を開きます`); });
+    longPress(r,e=>{ tap('資料を長押し'); popMenu(e,r.dataset.mat,[['本文から読み直す','人物抽出'],['関係を見る','人物相関図'],['場面検索']]); }); });
+  scr.querySelectorAll('[data-strip]').forEach(b=>b.onclick=()=>{ const v=b.dataset.strip; tap('道具帯：'+v); if(v==='横で書く'||v==='縦で書く'){S.horiz=!S.horiz;render();} else run(v,'キーボードの上の道具帯'); });
+  bindRuns(scr);
+  const q=scr.querySelector('#q'); if(q){ q.oninput=()=>{ allQuery=q.value; scr.querySelector('#allList').innerHTML=allRows(); bindRuns(scr.querySelector('#allList')); }; }
+  const g=scr.querySelector('#gone'); if(g) g.onchange=()=>{ showGone=g.checked; scr.querySelector('#allList').innerHTML=allRows(); bindRuns(scr.querySelector('#allList')); };
+  const say=scr.querySelector('#say'); if(say) say.onkeydown=e=>{ if(e.key==='Enter'&&!e.isComposing) scr.querySelector('[data-act=say]').click(); };
+  const ms=scr.querySelector('#ms'); if(ms) ms.onmouseup=ms.ontouchend=()=>setTimeout(selBand,0);
+}
+function bindRuns(root){
+  root.querySelectorAll('[data-run]').forEach(r=>r.onclick=()=>{ tap(r.dataset.via+' → '+r.dataset.run); if(r.closest('.sheet')) closePops(); run(r.dataset.run,r.dataset.via); });
+}
+/* 字を選んだときの帯（設計書 4.4） */
+function selBand(){
+  const sel=getSelection(); scr.querySelectorAll('.band').forEach(n=>n.remove());
+  if(!sel.rangeCount||sel.isCollapsed) return;
+  const rr=sel.getRangeAt(0).getBoundingClientRect(), r=scr.getBoundingClientRect(), k=scale();
+  const b=document.createElement('div'); b.className='band';
+  const word=sel.toString().slice(0,8);
+  b.innerHTML=['ルビ','傍点','資料を見る','AI に訊く'].map(x=>`<button>${x}</button>`).join('')+'<span class="sep"></span>'+['コピー','貼り付け'].map(x=>`<button>${x}</button>`).join('');
+  scr.appendChild(b);
+  // 選んだ所のすぐ下に、横の真ん中をそろえて出す（収まらなければ上）
+  const msr=scr.querySelector('#ms').getBoundingClientRect();
+  const lo=(msr.left-r.left)/k+4, hi=(msr.right-r.left)/k-b.offsetWidth-4;
+  let x=((rr.left+rr.right)/2-r.left)/k-b.offsetWidth/2;
+  x=Math.max(lo,Math.min(x,hi));
+  let y=(rr.bottom-r.top)/k+6; if(y+b.offsetHeight>scr.clientHeight-50) y=(rr.top-r.top)/k-b.offsetHeight-6;
+  b.style.left=Math.max(6,x)+'px'; b.style.top=Math.max(54,y)+'px';
+  b.querySelectorAll('button').forEach(btn=>btn.onmousedown=e=>{ e.preventDefault(); const v=btn.textContent; tap('選んだ「'+word+'」→ '+v); b.remove();
+    if(v==='資料を見る'){ if(S.w==='wide'){S.sideTab='mat';render();} else if(S.w==='medium'){S.sideTab='mat';S.drawer=true;render();} else sheet('資料：'+word, materialsList()); }
+    else if(v==='AI に訊く'){ chatLog.push({who:'me',t:`「${word}」について`}); chatLog.push({who:'ai',t:'（試作）選んだ所について答えます。'}); if(S.w==='wide'){S.sideTab='chat';render();} else goOther('chat'); }
+    else run(v,'字を選んだときの帯'); });
+}
+
+document.querySelectorAll('#widthSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#widthSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  S.w=b.dataset.w; S.drawer=false; if(S.w!=='narrow'&&S.tab==='works'&&S.inWork) S.tab='write'; render();
+});
+renderTasks(); render();
+</script>
+</body>
+</html>
