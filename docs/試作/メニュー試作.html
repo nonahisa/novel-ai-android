@@ -112,6 +112,21 @@ aside.log h2{font-size:14px;margin:0 0 8px}
 .msg button{margin-top:6px}
 .toast{position:absolute;left:50%;bottom:76px;transform:translateX(-50%);z-index:40;background:#333;color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;max-width:90%;box-shadow:var(--shadow);line-height:1.6}
 .empty{padding:24px;color:var(--sub);text-align:center}
+/* 日本語キーボード（IME）の見本。原稿を押すと画面の下に出る */
+.kbd{--kb:#d3d6db;--key:#fff;--key2:#bcc0c7;--kink:#202124;flex:0 0 auto;background:var(--kb);color:var(--kink);display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;font-family:"Yu Gothic UI","Meiryo",sans-serif}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .kbd{--kb:#202124;--key:#3c4043;--key2:#2d2f33;--kink:#e8eaed} }
+:root[data-theme="dark"] .kbd{--kb:#202124;--key:#3c4043;--key2:#2d2f33;--kink:#e8eaed}
+.kbd .cand{height:38px;flex:0 0 38px;display:flex;align-items:center;gap:2px;padding:0 4px;overflow:hidden;border-bottom:1px solid #0001}
+.kbd .cand button{border:0;background:transparent;color:inherit;padding:6px 10px;font-size:15px;cursor:pointer;white-space:nowrap;border-radius:6px}
+.kbd .cand button:hover{background:#0001}
+.kbd .cand .pre{color:var(--acc);text-decoration:underline;padding:0 6px;font-size:15px}
+.kbd .cand .grow{flex:1}
+.kbd .keys{flex:1;display:grid;gap:5px;padding:5px}
+.kbd .k{border:0;border-radius:6px;background:var(--key);color:inherit;font-size:17px;cursor:pointer;box-shadow:0 1px 0 #0003;padding:0;min-width:0}
+.kbd .k.f{background:var(--key2);font-size:12px}
+.kbd .k.go{background:var(--acc);color:#fff;font-size:13px}
+.kbd .k:active{filter:brightness(.85)}
+.kbd .k small{display:block;font-size:9px;opacity:.6;line-height:1}
 details.more summary{cursor:pointer;padding:12px 14px;color:var(--sub)}
 .est{margin:12px 14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;line-height:1.9}
 .primary{border:0;background:var(--acc);color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer}
@@ -211,11 +226,12 @@ const TASKS = [
   {id:'ルビ',t:'本文の語にルビを振る'},
   {id:'人物相関図',t:'人物相関図を見る'},
   {id:'執筆統計',t:'今週の字数を見る（執筆統計）'},
+  {id:'キーボード',t:'原稿を押してキーボードを出し、残る広さを見る'},
 ];
 const taskDone = {};
 
 /* 状態 */
-const S = { w:'narrow', tab:'works', work:WORKS[0], ep:3, otherPage:null, sideTab:'prop', drawer:null, horiz:false };
+const S = { w:'narrow', tab:'works', work:WORKS[0], ep:3, otherPage:null, sideTab:'prop', drawer:null, horiz:false, kbd:false, kbdKeep:false, kbdKind:null };
 let taps = 0;
 const scr = document.getElementById('scr');
 const SIZE = { narrow:[360,760], medium:[760,420], wide:[1180,760] };
@@ -484,9 +500,88 @@ function render(){
     h = `<div class="body">${navHtml('rail')}${center}</div>`;
     if(S.w==='medium' && S.drawer && S.tab==='write') h += `<div class="drawer"><div class="subtabs">${sideTabs()}<button data-act="closedrawer">✕</button></div><div class="scroll">${S.sideTab==='mat'?materialsList():propsList()}</div></div>`;
   }
+  // キーボードは、縦横の切り替えのように原稿に居続ける操作のときだけ残す
+  S.kbd = S.tab==='write' && S.kbdKeep; S.kbdKeep=false;
   scr.innerHTML = h;
+  if(S.kbd) scr.appendChild(kbdEl());
   bind();
   fit();
+  if(S.kbd) focusMs();
+}
+
+/* ===== 日本語キーボード（IME）の見本 ===== */
+// 狭い段（縦持ち）は12キー、中と広い段（横持ち・タブレット）はローマ字入力の QWERTY を出す
+const KBD_H = { narrow:270, medium:170, wide:300 };
+const KANA = { 'あ':'あいうえお','か':'かきくけこ','さ':'さしすせそ','た':'たちつてと','な':'なにぬねの','は':'はひふへほ','ま':'まみむめも','や':'やゆよ','ら':'らりるれろ','わ':'わをん','、。':'、。？！','記号':'「」『』……――' };
+const MARKS = ['かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つっづ','てで','とど','はばぱ','ひびぴ','ふぶぷ','へべぺ','ほぼぽ','あぁ','いぃ','うぅゔ','えぇ','おぉ','やゃ','ゆゅ','よょ','わゎ'];
+const ROMA = (()=>{ const m={a:'あ',i:'い',u:'う',e:'え',o:'お',nn:'ん',shi:'し',chi:'ち',tsu:'つ',fu:'ふ',ji:'じ','-':'ー'};
+  const rows={k:'かきくけこ',s:'さしすせそ',t:'たちつてと',n:'なにぬねの',h:'はひふへほ',m:'まみむめも',y:'やいゆえよ',r:'らりるれろ',w:'わいうえを',g:'がぎぐげご',z:'ざじずぜぞ',d:'だぢづでど',b:'ばびぶべぼ',p:'ぱぴぷぺぽ'};
+  for(const c in rows) 'aiueo'.split('').forEach((v,i)=>m[c+v]=rows[c][i]); return m; })();
+const CANDS = ['灯台','澪','岬','手紙','父さん','霧','石段','差出人'];
+let kbBuf='', kbLast={key:null,t:0,i:0};
+function kbdKind(){ return S.kbdKind || (S.w==='narrow'?'12':'qwerty'); }
+function kbdEl(){
+  const d=document.createElement('div'); d.className='kbd'; d.style.height=KBD_H[S.w]+'px';
+  const K=(v,l,cls='',sub='')=>`<button class="k ${cls}" data-k="${esc(v)}">${l}${sub?`<small>${sub}</small>`:''}</button>`;
+  let keys;
+  if(kbdKind()==='12'){
+    keys=`<div class="keys" style="grid-template-columns:1fr 1.3fr 1.3fr 1.3fr 1fr;grid-template-rows:repeat(4,1fr)">
+      ${K('←','←','f')}${K('あ','あ','','いうえお')}${K('か','か','','きくけこ')}${K('さ','さ','','しすせそ')}${K('⌫','⌫','f')}
+      ${K('→','→','f')}${K('た','た','','ちつてと')}${K('な','な','','にぬねの')}${K('は','は','','ひふへほ')}${K('空白','空白','f')}
+      ${K('記号','「」…','f')}${K('ま','ま','','みむめも')}${K('や','や','','ゆよ')}${K('ら','ら','','りるれろ')}<button class="k go" data-k="改行" style="grid-row:span 2">改行</button>
+      ${K('切替','あa1','f','ローマ字へ')}${K('゛゜小','゛゜小','f')}${K('わ','わ','','をん')}${K('、。','、。','','？！')}
+    </div>`;
+  } else {
+    const r=s=>s.split('').map(c=>K(c,c)).join('');
+    keys=`<div class="keys" style="grid-template-columns:repeat(20,1fr);grid-template-rows:repeat(4,1fr)">
+      ${'qwertyuiop'.split('').map(c=>K(c,c).replace('class="k ','style="grid-column:span 2" class="k ')).join('')}
+      <span></span>${'asdfghjkl'.split('').map(c=>K(c,c).replace('class="k ','style="grid-column:span 2" class="k ')).join('')}<span></span>
+      ${K('-','ー','f').replace('class="k ','style="grid-column:span 3" class="k ')}${'zxcvbnm'.split('').map(c=>K(c,c).replace('class="k ','style="grid-column:span 2" class="k ')).join('')}${K('⌫','⌫','f').replace('class="k ','style="grid-column:span 3" class="k ')}
+      ${K('切替','あa1','f').replace('class="k ','style="grid-column:span 3" class="k ')}${K('記号','「」…','f').replace('class="k ','style="grid-column:span 2" class="k ')}${K('←','←','f').replace('class="k ','style="grid-column:span 2" class="k ')}${K('空白','空白').replace('class="k ','style="grid-column:span 6" class="k ')}${K('→','→','f').replace('class="k ','style="grid-column:span 2" class="k ')}${K('、。','、。','f').replace('class="k ','style="grid-column:span 2" class="k ')}<button class="k go" data-k="改行" style="grid-column:span 3">改行</button>
+    </div>`;
+  }
+  d.innerHTML=`<div class="cand"><span class="pre"></span>${CANDS.map(c=>`<button data-c="${c}">${c}</button>`).join('')}<span class="grow"></span><button data-k="閉じる" title="キーボードを閉じる">▼</button></div>${keys}`;
+  // 押しても原稿から焦点を外さない（外すとキーボードが閉じる）
+  d.addEventListener('mousedown',e=>e.preventDefault());
+  d.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>kbKey(b.dataset.k));
+  d.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ tap('キーボードの候補：'+b.dataset.c); focusMs(); kbBuf=''; ins(b.dataset.c); kbPre(); });
+  return d;
+}
+function focusMs(){
+  const ms=scr.querySelector('#ms'); if(!ms) return;
+  if(document.activeElement!==ms){ ms.focus({preventScroll:true}); const r=document.createRange(); r.selectNodeContents(ms); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+}
+function ins(t){ document.execCommand('insertText',false,t); }
+function kbPre(){ const p=scr.querySelector('.kbd .pre'); if(p) p.textContent=kbBuf; }
+function showKbd(){
+  if(S.tab!=='write' || scr.querySelector('.kbd')) return;
+  S.kbd=true; scr.appendChild(kbdEl()); tap('原稿を押す → キーボードが出る');
+  if(taskDone['キーボード']==null){ taskDone['キーボード']=taps; renderTasks(); }
+}
+function hideKbd(){ S.kbd=false; kbBuf=''; scr.querySelectorAll('.kbd').forEach(n=>n.remove()); }
+function kbKey(k){
+  focusMs(); const sel=getSelection(), now=Date.now();
+  if(k==='閉じる'){ tap('キーボードを閉じる（▼）'); hideKbd(); scr.querySelector('#ms')?.blur(); return; }
+  if(k==='切替'){ tap('キーボード：あa1'); S.kbdKind = kbdKind()==='12'?'qwerty':'12'; kbBuf=''; scr.querySelector('.kbd').replaceWith(kbdEl()); return; }
+  if(k==='⌫'){ if(kbBuf){ kbBuf=kbBuf.slice(0,-1); kbPre(); } else document.execCommand('delete'); kbLast.key=null; return; }
+  if(k==='←'||k==='→'){ sel.modify('move',k==='←'?'backward':'forward','character'); kbLast.key=null; return; }
+  if(k==='空白'){ ins('　'); kbLast.key=null; return; }
+  if(k==='改行'){ if(kbBuf){ ins(kbBuf); kbBuf=''; kbPre(); } else document.execCommand('insertParagraph'); kbLast.key=null; return; }
+  if(k==='゛゜小'){ // 直前の字を、濁点・半濁点・小さい字へ順に替える
+    sel.modify('extend','backward','character'); const c=sel.toString(), m=MARKS.find(x=>x.includes(c));
+    if(m) ins(m[(m.indexOf(c)+1)%m.length]); else sel.collapseToEnd(); return; }
+  if(KANA[k]){ // 12キー：同じキーを続けて押すと、次の字へ（あ→い→う）
+    const cyc=KANA[k];
+    if(kbLast.key===k && now-kbLast.t<1000){ kbLast.i=(kbLast.i+1)%cyc.length; document.execCommand('delete'); }
+    else kbLast.i=0;
+    ins(cyc[kbLast.i]); kbLast.key=k; kbLast.t=now; return; }
+  // QWERTY：ローマ字をかなにする
+  kbBuf+=k;
+  if(/^([kstnhmyrwgzdbp])\1$/.test(kbBuf)){ ins('っ'); kbBuf=kbBuf[1]; }
+  else if(/^n[^aiueoyn]$/.test(kbBuf)){ ins('ん'); kbBuf=kbBuf[1]; }
+  if(ROMA[kbBuf]){ ins(ROMA[kbBuf]); kbBuf=''; }
+  else if(kbBuf.length>=4 || (kbBuf.length>=3 && !/^(sh|ch|ts)/.test(kbBuf))){ ins(kbBuf); kbBuf=''; }
+  kbPre();
 }
 function scale(){ const st=document.getElementById('stage'); const m=/scale\(([\d.]+)\)/.exec(st.style.transform); return m?+m[1]:1; }
 function fit(){
@@ -511,7 +606,7 @@ function bind(){
     else if(a==='add'){ tap('［＋］'); sheet('作品を足す',`<div class="row" data-x="GitHubから追加"><div class="main"><div class="t">GitHub から取り寄せる</div><div class="s">パソコンで書いている作品を持ってくる</div></div></div><div class="row" data-x="新しく作る"><div class="main"><div class="t">新しく作る</div><div class="s">題を入れるだけ。GitHub に置くかはあとで訊く</div></div></div>`,s=>s.querySelectorAll('[data-x]').forEach(r=>r.onclick=()=>{ tap('作品を足す → '+r.querySelector('.t').textContent); closePops(); run(r.dataset.x,'［作品］の［＋］'); })); }
     else if(a==='more'){ tap('上のバーの［…］'); popMenu(e, S.tab==='write'?'この話':'この作品', [['新しい話'],['章立て提案'],['AIを走らせる',null,()=>runSheet()],['相談パネルを開く','相談パネルを開く',()=>{ if(S.w==='wide'){S.sideTab='chat';render();} else goOther('chat'); }],['メモ追加'],['再開用資料'],['書き出し',null,()=>goOther('publish')]]); }
     else if(a==='search'){ tap('🔍'); goOther('all'); }
-    else if(a==='horiz'){ tap(S.horiz?'縦で書く':'横で書く'); S.horiz=!S.horiz; render(); }
+    else if(a==='horiz'){ tap(S.horiz?'縦で書く':'横で書く'); S.horiz=!S.horiz; S.kbdKeep=S.kbd; render(); }
     else if(a==='drawer'){ tap('☰ 提案・資料'); S.drawer=true; render(); }
     else if(a==='closedrawer'){ tap('引き出しを閉じる'); S.drawer=false; render(); }
     else if(a==='takeall'){ tap('まとめて採る'); proposals=[]; render(); toast('（試作）未決の提案をまとめて採りました'); }
@@ -530,12 +625,15 @@ function bind(){
   scr.querySelectorAll('[data-take],[data-skip]').forEach(b=>b.onclick=()=>{ const i=+(b.dataset.take??b.dataset.skip); tap((b.dataset.take!=null?'採る：':'見送る：')+proposals[i].k); proposals.splice(i,1); render(); });
   scr.querySelectorAll('[data-mat]').forEach(r=>{ clickUnlessLong(r,()=>{ tap('資料：'+r.dataset.mat); toast(`（試作）「${esc(r.dataset.mat)}」の1件を開きます`); });
     longPress(r,e=>{ tap('資料を長押し'); popMenu(e,r.dataset.mat,[['本文から読み直す','人物抽出'],['関係を見る','人物相関図'],['場面検索']]); }); });
-  scr.querySelectorAll('[data-strip]').forEach(b=>b.onclick=()=>{ const v=b.dataset.strip; tap('道具帯：'+v); if(v==='横で書く'||v==='縦で書く'){S.horiz=!S.horiz;render();} else run(v,'キーボードの上の道具帯'); });
+  scr.querySelectorAll('[data-strip]').forEach(b=>{ b.onmousedown=e=>e.preventDefault(); b.onclick=()=>{ const v=b.dataset.strip; tap('道具帯：'+v); if(v==='横で書く'||v==='縦で書く'){S.horiz=!S.horiz;S.kbdKeep=S.kbd;render();} else run(v,'キーボードの上の道具帯'); }; });
   bindRuns(scr);
   const q=scr.querySelector('#q'); if(q){ q.oninput=()=>{ allQuery=q.value; scr.querySelector('#allList').innerHTML=allRows(); bindRuns(scr.querySelector('#allList')); }; }
   const g=scr.querySelector('#gone'); if(g) g.onchange=()=>{ showGone=g.checked; scr.querySelector('#allList').innerHTML=allRows(); bindRuns(scr.querySelector('#allList')); };
   const say=scr.querySelector('#say'); if(say) say.onkeydown=e=>{ if(e.key==='Enter'&&!e.isComposing) scr.querySelector('[data-act=say]').click(); };
-  const ms=scr.querySelector('#ms'); if(ms) ms.onmouseup=ms.ontouchend=()=>setTimeout(selBand,0);
+  const ms=scr.querySelector('#ms'); if(ms){ ms.onmouseup=ms.ontouchend=()=>setTimeout(selBand,0);
+    ms.onfocus=showKbd; ms.onclick=showKbd;
+    // ほかの所を押して原稿から焦点が外れたら、キーボードを閉じる
+    ms.onblur=()=>setTimeout(()=>{ if(document.activeElement!==scr.querySelector('#ms')) hideKbd(); },150); }
 }
 function bindRuns(root){
   root.querySelectorAll('[data-run]').forEach(r=>r.onclick=()=>{ tap(r.dataset.via+' → '+r.dataset.run); if(r.closest('.sheet')) closePops(); run(r.dataset.run,r.dataset.via); });
@@ -554,7 +652,8 @@ function selBand(){
   const lo=(msr.left-r.left)/k+4, hi=(msr.right-r.left)/k-b.offsetWidth-4;
   let x=((rr.left+rr.right)/2-r.left)/k-b.offsetWidth/2;
   x=Math.max(lo,Math.min(x,hi));
-  let y=(rr.bottom-r.top)/k+6; if(y+b.offsetHeight>scr.clientHeight-50) y=(rr.top-r.top)/k-b.offsetHeight-6;
+  // 原稿の下の端（キーボードが出ていればその上）を越えるなら、選んだ所の上に出す
+  let y=(rr.bottom-r.top)/k+6; if(y+b.offsetHeight>(msr.bottom-r.top)/k) y=(rr.top-r.top)/k-b.offsetHeight-6;
   b.style.left=Math.max(6,x)+'px'; b.style.top=Math.max(54,y)+'px';
   b.querySelectorAll('button').forEach(btn=>btn.onmousedown=e=>{ e.preventDefault(); const v=btn.textContent; tap('選んだ「'+word+'」→ '+v); b.remove();
     if(v==='資料を見る'){ if(S.w==='wide'){S.sideTab='mat';render();} else if(S.w==='medium'){S.sideTab='mat';S.drawer=true;render();} else sheet('資料：'+word, materialsList()); }
